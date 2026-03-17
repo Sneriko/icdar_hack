@@ -191,16 +191,3 @@ def train_test_split():
         test.extend(subset[:n])
         train.extend(subset[n:])
     return train, test
-
-
-if __name__ == "__main__":
-    p = "/mnt/work/GT-Lejonet_HTR_202602"
-
-    # source = pages_from_path(p)
-    # init_lmdb(source)
-    keys = get_pages()
-    d = LinesDataset(keys)
-    item = d[4]
-    item[0].save("test.jpg")
-    tr, te = train_test_split()
-    print(len(tr), len(te), len(te) / (len(tr) + len(te)))
