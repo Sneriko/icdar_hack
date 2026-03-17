@@ -13,7 +13,6 @@ from queue import Queue
 import random
 from collections import defaultdict
 from tqdm import tqdm
-from gt import pages_from_path
 import threading
 
 from params import LMDB_DATA_DIRECTORY, LMDB_KEYS, LMDB_MAP_SIZE, TRAIN_SPLIT_SIZE
@@ -148,7 +147,7 @@ def init_lmdb(source) -> list[bytes]:
     print(
         f"Found {len(source)} GT pages, ",
         f"{num_cached} already in LMDB, ",
-        f"{len(to_process)} remains"
+        f"{len(to_process)} remains",
     )
     if not to_process:
         return

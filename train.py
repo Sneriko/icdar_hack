@@ -2,12 +2,11 @@
 Train TrOCR.
 """
 
-import atexit
 import argparse
 import lightning as L
 
 from jiwer import cer
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint
 import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from tracking import get_logger
@@ -60,7 +59,9 @@ class TrOCRModule(L.LightningModule):
         # Compute CER
         labels[labels == -100] = self.model.config.pad_token_id
         gt = self.processor.tokenizer.batch_decode(labels, skip_special_tokens=True)
-        outputs = self.model.generate(pixel_values=pixel_values, interpolate_pos_encoding=True)
+        outputs = self.model.generate(
+            pixel_values=pixel_values, interpolate_pos_encoding=True
+        )
         preds = self.processor.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         for gt, pred, subset in zip(gt, preds, subset_names):
@@ -89,8 +90,12 @@ if __name__ == "__main__":
     train_keys, test_keys = train_test_split()
     train_dataset = LMDBDataset(train_keys)
     test_dataset = LMDBDataset(test_keys)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True
+    )
+    test_dataloader = torch.utils.data.DataLoader(
+        test_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True
+    )
     print(f"Train dataset size: {len(train_dataset)} lines")
     print(f" Test dataset size: {len(train_dataset)} lines")
 

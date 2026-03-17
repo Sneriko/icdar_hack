@@ -26,4 +26,6 @@ def get_logger(experiment_name: str, strict: bool):
         )
         exit()
 
-    return TensorBoardLogger(save_dir="logs", name=experiment_name, version=current_git_hash())
+    return TensorBoardLogger(
+        save_dir="logs", name=experiment_name, version=current_git_hash()
+    )
