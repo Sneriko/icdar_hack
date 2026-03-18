@@ -155,7 +155,7 @@ def normalize(text: str) -> str:
     
     # Replace repeated dashes with a single em dash (TOGMF-style)
     # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
-    text = re.sub(r"( ?(\"|\.|-|_|—|‒|―) ?)+",  " — ", text)
+    text = re.sub(r"( ?(-|_|—|‒|―|–) ?)+",  " — ", text)
 
     # Replace all (possibly repeated) whitespace-like characters with a singe ' '
     text = re.sub(r"\s+", " ", text)

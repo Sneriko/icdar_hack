@@ -40,7 +40,7 @@ class Page:
             coords = coords.get("points")
             polygon = coords2polygon(coords)
             content = line.find("./TextEquiv/Unicode", ns)
-            if content is None or content.text is None or content.text.isspace():
+            if content is None:
                 continue
             try:
                 masked_image = apply_mask(image, polygon)

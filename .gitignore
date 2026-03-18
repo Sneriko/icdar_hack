@@ -7,3 +7,4 @@ logs
 checkpoints
 lightning_logs
 validation.log
+nohup.out
