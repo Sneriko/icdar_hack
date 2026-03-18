@@ -5,6 +5,7 @@ Utilities for setting up experiment tracking
 import subprocess
 from lightning.pytorch.loggers import MLFlowLogger
 
+import params
 
 def current_git_hash() -> str:
     cmd = "git describe --always"
@@ -18,14 +19,15 @@ def repo_is_dirty():
 
 def get_logger(experiment_name: str, strict: bool):
 
-    if strict:
-        if repo_is_dirty():
-            print(
-                "Your working directory contains untracked and/or modified files. "
-                "Please commit or remove your changes before starting a training run, "
-                "or pass --no-track to start an untracked run."
-            )
-            exit()
-        return MLFlowLogger(
-            experiment_name=experiment_name, run_name=current_git_hash(), log_model=True
+    if strict and repo_is_dirty():
+        print(
+            "Your working directory contains untracked and/or modified files. "
+            "Please commit or remove your changes before starting a training run, "
+            "or pass --no-track to start an untracked run."
         )
+        exit()
+
+    run_name = current_git_hash() if strict else None
+    logger = MLFlowLogger(experiment_name=experiment_name, run_name=run_name)
+    logger.log_hyperparams({k: v for k, v in vars(params).items() if not k.startswith("_")})
+    return logger

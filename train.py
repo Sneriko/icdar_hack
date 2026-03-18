@@ -79,6 +79,16 @@ def worker_init_fn(worker_id):
     dataset.env = lmdb.open(LMDB_DATA_DIRECTORY, readonly=True, lock=False, readahead=True, meminit=False, map_size=LMDB_MAP_SIZE)
     # atexit.register(dataset.cleanup_environment)
 
+
+def subset(key: bytes):
+    """
+    Return the subset `key` belongs to
+    """
+    key = key.decode("utf-8")
+    key = key.removeprefix(DATA_PATH)
+    return Path(key).parts[0].strip("/")
+
+
 class TrOCRModule(lightning.LightningModule):
     def __init__(self, model, processor):
         super().__init__()
@@ -119,9 +129,8 @@ class TrOCRModule(lightning.LightningModule):
 
         for gt, pred, key in zip(gt, preds, keys):
             cer_ = cer(gt, pred)
-            parts = Path(key.decode("utf-8")).parts
-            for i in range(len(parts)):
-                self.log(f"cer_{'--'.join(parts[:i])}", cer_)
+            self.log("cer", cer_)
+            self.log(f"cer_{subset(key)}", cer_)
 
         return loss
 
@@ -166,6 +175,8 @@ if __name__ == "__main__":
     print(f"Train dataset size: {len(train_dataset)} lines")
     print(f" Test dataset size: {len(test_dataset)} lines")
 
+    logger.log_hyperparams({"test_split": test_dataset.keys})
+
     # Init model
     model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
     model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
@@ -186,11 +197,12 @@ if __name__ == "__main__":
     # Define trainer
     trainer = lightning.Trainer(
         max_epochs=10,
-        val_check_interval=1.0,
+        val_check_interval=0.001,
         strategy="ddp_find_unused_parameters_true",
         logger=logger,
         num_sanity_val_steps=100,
         callbacks=[checkpoint_callback],
+        limit_val_batches=200,
     )
 
     model = TrOCRModule(model, processor)
