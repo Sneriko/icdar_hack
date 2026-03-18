@@ -21,7 +21,7 @@ from data import init_lmdb, train_test_split
 from params import *
 
 
-torch.set_float32_matmul_precision("high")
+torch.set_float32_matmul_precision(TORCH_FLOAT32_MATMUL_PRECISION)
 
 
 class TrOCRDataset(torch.utils.data.Dataset):
@@ -76,7 +76,14 @@ class TrOCRDataset(torch.utils.data.Dataset):
 def worker_init_fn(worker_id):
     worker_info = torch.utils.data.get_worker_info()
     dataset = worker_info.dataset
-    dataset.env = lmdb.open(LMDB_DATA_DIRECTORY, readonly=True, lock=False, readahead=True, meminit=False, map_size=LMDB_MAP_SIZE)
+    dataset.env = lmdb.open(
+        LMDB_DATA_DIRECTORY,
+        readonly=True,
+        lock=False,
+        readahead=True,
+        meminit=False,
+        map_size=LMDB_MAP_SIZE,
+    )
     # atexit.register(dataset.cleanup_environment)
 
 
@@ -86,7 +93,7 @@ def subset(key: bytes):
     """
     key = key.decode("utf-8")
     key = key.removeprefix(DATA_PATH)
-    return Path(key).parts[0].strip("/")
+    return Path(key).parts[1].strip("/")
 
 
 class TrOCRModule(lightning.LightningModule):
@@ -123,7 +130,7 @@ class TrOCRModule(lightning.LightningModule):
         outputs = self.model.generate(
             pixel_values=pixel_values,
             interpolate_pos_encoding=True,
-            max_new_tokens=MODEL_MAX_LENGTH
+            max_new_tokens=MODEL_MAX_LENGTH,
         )
         preds = self.processor.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
@@ -174,8 +181,6 @@ if __name__ == "__main__":
     )
     print(f"Train dataset size: {len(train_dataset)} lines")
     print(f" Test dataset size: {len(test_dataset)} lines")
-
-    logger.log_hyperparams({"test_split": test_dataset.keys})
 
     # Init model
     model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
