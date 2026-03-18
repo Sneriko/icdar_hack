@@ -6,3 +6,4 @@ __pycache__
 logs
 checkpoints
 lightning_logs
+validation.log

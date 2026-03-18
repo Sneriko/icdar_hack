@@ -7,6 +7,8 @@ import io
 import torch
 import pickle
 from pathlib import Path
+import random
+import logging
 
 from PIL import Image
 from jiwer import cer
@@ -15,6 +17,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import lmdb
 
+
 from tracking import get_logger
 from augment import augment
 from data import init_lmdb, train_test_split
@@ -22,6 +25,12 @@ from params import *
 
 
 torch.set_float32_matmul_precision(TORCH_FLOAT32_MATMUL_PRECISION)
+
+
+validation_logger = logging.getLogger("validation")
+validation_logger.addHandler(logging.FileHandler("validation.log"))
+validation_logger.setLevel(logging.INFO)
+
 
 
 class TrOCRDataset(torch.utils.data.Dataset):
@@ -84,7 +93,6 @@ def worker_init_fn(worker_id):
         meminit=False,
         map_size=LMDB_MAP_SIZE,
     )
-    # atexit.register(dataset.cleanup_environment)
 
 
 def subset(key: bytes):
@@ -138,6 +146,10 @@ class TrOCRModule(lightning.LightningModule):
             cer_ = cer(gt, pred)
             self.log("cer", cer_)
             self.log(f"cer_{subset(key)}", cer_)
+
+            # print some samples to look at :)
+            if random.random() < 0.1:
+                validation_logger.info(f"{gt} | {pred} | {cer_}")
 
         return loss
 
@@ -202,12 +214,11 @@ if __name__ == "__main__":
     # Define trainer
     trainer = lightning.Trainer(
         max_epochs=10,
-        val_check_interval=0.001,
+        val_check_interval=0.5,
         strategy="ddp_find_unused_parameters_true",
         logger=logger,
         num_sanity_val_steps=100,
         callbacks=[checkpoint_callback],
-        limit_val_batches=200,
     )
 
     model = TrOCRModule(model, processor)
