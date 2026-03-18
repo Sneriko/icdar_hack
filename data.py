@@ -10,7 +10,6 @@ import os
 import io
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-import random
 from collections import defaultdict
 from tqdm import tqdm
 import threading
@@ -19,12 +18,10 @@ from params import (
     LMDB_DATA_DIRECTORY,
     LMDB_KEYS,
     LMDB_MAP_SIZE,
-    TRAIN_SPLIT_SIZE,
     DATA_PATH,
+    TEST_SPLIT,
 )
 from gt import pages_from_path
-
-random.seed(0)
 
 
 def encode_sample(key: str, image: Image, text: str) -> bytes | None:
@@ -162,10 +159,15 @@ def train_test_split():
 
     train = []
     test = []
-    for subset in subsets.values():
-        n = int((1 - TRAIN_SPLIT_SIZE) * len(subset))
-        n = max(1, n)
-        random.shuffle(subset)
-        test.extend(subset[:n])
-        train.extend(subset[n:])
+
+    for subset in subsets:
+        with open(os.path.join(subset.decode("utf-8"), TEST_SPLIT)) as f:
+            test_pages = tuple(map(str.strip, f.readlines()))
+
+        for page in subsets[subset]:
+            if page.decode("utf-8").endswith(test_pages):
+                test.append(page)
+            else:
+                train.append(page)
+
     return train, test
