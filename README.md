@@ -2,16 +2,68 @@
 
 Detta repo innehåller kod för att träna det svenska lejonet.
 
-## Struktur
+## Instruktioner
 
-Alla hyperparametrar finns i `params.py`.
+Klona repot och installera beroenden:
+```
+git clone https://devops.ra.se/DataLab/Datalab/_git/swedish-lion
+cd swedish-lion
+uv sync
+```
+
+Sätt `MLFLOW_TRACKING_URI`:
+```
+export MLFLOW_TRACKING_URI=https://mlflow.ra.se
+```
+
+Träningsskriptet hämtar data från `DATA_PATH`, som sätts i `params.py`. Uppdatera den om det behövs. Se avsnittet [Data](#data) för format.
+
+Checka in eventuella ändringar och starta träningen med 
+```
+python3 train.py EXPERIMENTNAMN
+```
+Det tar en stund (~1h) att skapa träningssetet första gången man kör skriptet.
+Det cacheas så följande körningar kommer komma igång snabbare.
+Träningen kommer att loggas till Mlflow under det valda experimentnamnet.
+
+
+## Repots struktur
+
+- `augment.py`: augmentering av träningsdatan
+- `data.py`: kod för att skapa LMDB:n utifrån GT
+- `generate_splits.py`: skriptet som användes för att generera de initiala splitsen
+- `gt.py`: lite hjälpfunktioner för att konvertera GT i PageXML till rader
+- `params.py`: alla hyperparametrar
+- `tracking.py`: uppsättning av MLflow + kontroll att repot är rent innan körning
+- `train.py`: själva träningsskriptet
+
 
 ## Data
 
 Träningen utgår från GT i form av Page XML och tillhörande bilder.
-De laddas från filsystemet (lokalt eller från NFS), klipps till rader och sparas i en LMDB.
-Om man utgår från GT på NFS:en tar det runt en timme att skapa LMDB:n (jag har inte testat från LakeFS än).
+Variabeln `DATA_PATH` i `params.py` innehåller sökvägen till datan.
+Skriptet letar rekursivt under `DATA_PATH` efter kataloger med följande struktur:
+```
+dir
+├── image_0.jpg
+├── image_1.jpg
+├── image_2.jpg
+├── ...
+├── image_N.jpg
+└── page
+    ├── image_0.xml
+    ├── image_1.xml
+    ├── image_2.xml
+    ├── ...
+    ├── image_N.xml
+    └── $TEST_SPLIT
+```
+Filen `$TEST_SPLIT` innehåller en lista på vilka sidor som ingår i testsetet.
+Det är alltid minst en per katalog.
+Själva namnet på splitfilen ges i `params.py`, just nu är den satt till `test0050` (dvs en split på 5%).
+Dessa filer är genererade med `generate_splits.py`, men tanken är att de inte ska omgenereras vid ny körning.
 
+Varje matchande bild- och PageXML-par klipps till rader och sparas i en LMDB.
 Träningsexemplena skrivs som (bild, text)-tuplar till LMDBn:
 
 |key|value|
@@ -34,4 +86,6 @@ Sidnycklarna finns under `__keys__`, och radnycklarna finns under respektive sid
 |page_0_key|[page_0_line_0_key, ..., page_0_line_*m*\_key]
 |page_*n*_key|[page_*n*\_line_0_key, ..., page_*n*\_line_*m*\_key]
 
-All kod för datahantering finns i `data.py`.
+### Augmentering
+
+Träningsexemplena augmenteras under träning enligt `augment.py`.
