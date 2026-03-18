@@ -40,6 +40,11 @@ for parent, _, files in os.walk("/mnt/work/GT-Lejonet_HTR_202602"):
 
         # Save splits to `test_0025` and so on, in the `page` directory.
         for set, split in zip(sets, ["0025", "0050", "0075", "0100"]):
-            name = f"test_{split}"
-            with open(os.path.join(parent, name), "w") as f:
+            path = os.path.join(parent, f"test_{split}")
+
+            if os.path.exists(path):
+                print(f"Split {path} exists already! Will not overwrite it.")
+                exit()
+
+            with open(path, "w") as f:
                 f.write("\n".join(set))
