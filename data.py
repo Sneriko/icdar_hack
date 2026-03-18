@@ -15,8 +15,14 @@ from collections import defaultdict
 from tqdm import tqdm
 import threading
 
-from params import LMDB_DATA_DIRECTORY, LMDB_KEYS, LMDB_MAP_SIZE, TRAIN_SPLIT_SIZE
-
+from params import (
+    LMDB_DATA_DIRECTORY,
+    LMDB_KEYS,
+    LMDB_MAP_SIZE,
+    TRAIN_SPLIT_SIZE,
+    DATA_PATH,
+)
+from gt import pages_from_path
 
 random.seed(0)
 
@@ -51,31 +57,6 @@ def get_pages():
         keys = pickle.loads(keys) if keys else []
     env.close()
     return keys
-
-
-class LinesDataset:
-    def __init__(self, pages):
-        self.env = lmdb.open(LMDB_DATA_DIRECTORY, map_size=LMDB_MAP_SIZE)
-
-        self.keys = []
-        with self.env.begin() as txn:
-            for page in pages:
-                keys = txn.get(page)
-                keys = pickle.loads(keys)
-                self.keys.extend(keys)
-
-    def __getitem__(self, idx):
-        key = self.keys[idx]
-        with self.env.begin() as txn:
-            data = txn.get(key)
-            image, text = pickle.loads(data)
-
-        image = Image.open(io.BytesIO(image))
-        text = text.decode("utf-8")
-        return image, text
-
-    def __len__(self):
-        return len(self.keys)
 
 
 def _lmdb_writer(queue: Queue, pages_pbar):
@@ -127,14 +108,12 @@ def _lmdb_writer(queue: Queue, pages_pbar):
     queue.task_done()
 
 
-def init_lmdb(source) -> list[bytes]:
+def init_lmdb() -> list[bytes]:
     """
     Create a dataset from the given source.
-
-    Returns:
-        The list of keys for the created dataset.
     """
 
+    source = pages_from_path(DATA_PATH)
     keys = get_pages()
     to_process = []
     num_cached = 0

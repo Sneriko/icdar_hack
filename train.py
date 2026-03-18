@@ -3,13 +3,20 @@ Train TrOCR.
 """
 
 import argparse
-import lightning as L
-
-from jiwer import cer
-from lightning.pytorch.callbacks import ModelCheckpoint
+import io
 import torch
+import pickle
+from pathlib import Path
+
+from PIL import Image
+from jiwer import cer
+import lightning
+from lightning.pytorch.callbacks import ModelCheckpoint
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+import lmdb
+
 from tracking import get_logger
+from augment import augment
 from data import init_lmdb, train_test_split
 from params import *
 
@@ -17,18 +24,62 @@ from params import *
 torch.set_float32_matmul_precision("high")
 
 
-class LMDBDataset(torch.utils.data.Dataset):
-    def __init__(self, keys):
-        self.keys = keys
+class TrOCRDataset(torch.utils.data.Dataset):
+    def __init__(self, pages: list[str], do_augment: bool, processor: TrOCRProcessor):
+        """
+        Arguments:
+            pages: The list of *page* keys that belong to this dataset.
+        """
 
-    def __getitem__(self, index):
-        pass
+        self.env = lmdb.open(LMDB_DATA_DIRECTORY, readonly=True, map_size=LMDB_MAP_SIZE)
+        self.keys = []
+        with self.env.begin() as txn:
+            for page in pages:
+                keys = txn.get(page)
+                keys = pickle.loads(keys)
+                self.keys.extend(keys)
+        self.env.close()
+        self.env = None
+        self.do_augment = do_augment
+        self.processor = processor
+
+    def __getitem__(self, idx):
+        # Get sample from LMDB
+        key = self.keys[idx]
+        with self.env.begin() as txn:
+            data = txn.get(key)
+            image, text = pickle.loads(data)
+
+        # Prepare image
+        image = Image.open(io.BytesIO(image))
+        if self.do_augment:
+            image = augment(image)
+        pixel_values = self.processor(image, return_tensors="pt").pixel_values.squeeze()
+
+        # Prepare labels
+        text = text.decode("utf-8")
+        labels = self.processor.tokenizer(
+            text,
+            padding="max_length",
+            max_length=MODEL_MAX_LENGTH,
+            truncation=True,
+            return_tensors="pt",
+        ).input_ids.squeeze()
+        labels[labels == self.processor.tokenizer.pad_token_id] = -100
+
+        return pixel_values, labels, key
 
     def __len__(self):
         return len(self.keys)
 
 
-class TrOCRModule(L.LightningModule):
+def worker_init_fn(worker_id):
+    worker_info = torch.utils.data.get_worker_info()
+    dataset = worker_info.dataset
+    dataset.env = lmdb.open(LMDB_DATA_DIRECTORY, readonly=True, lock=False, readahead=True, meminit=False, map_size=LMDB_MAP_SIZE)
+    # atexit.register(dataset.cleanup_environment)
+
+class TrOCRModule(lightning.LightningModule):
     def __init__(self, model, processor):
         super().__init__()
         self.model = model
@@ -42,7 +93,7 @@ class TrOCRModule(L.LightningModule):
         return self.loss_fn(logits, labels)
 
     def training_step(self, batch, batch_idx):
-        pixel_values, labels = batch
+        pixel_values, labels, _ = batch
         outputs = self.model(
             pixel_values=pixel_values, labels=labels, interpolate_pos_encoding=True
         )
@@ -51,7 +102,7 @@ class TrOCRModule(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataset_idx=0):
-        pixel_values, labels, subset_names = batch
+        pixel_values, labels, key = batch
         outputs = self.model(pixel_values, labels=labels, interpolate_pos_encoding=True)
         loss = self._compute_loss(outputs, labels)
         self.log("validation_loss", loss)
@@ -60,14 +111,17 @@ class TrOCRModule(L.LightningModule):
         labels[labels == -100] = self.model.config.pad_token_id
         gt = self.processor.tokenizer.batch_decode(labels, skip_special_tokens=True)
         outputs = self.model.generate(
-            pixel_values=pixel_values, interpolate_pos_encoding=True
+            pixel_values=pixel_values,
+            interpolate_pos_encoding=True,
+            max_new_tokens=MODEL_MAX_LENGTH
         )
         preds = self.processor.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-        for gt, pred, subset in zip(gt, preds, subset_names):
+        for gt, pred in zip(gt, preds):
             cer_ = cer(gt, pred)
-            self.log(f"cer_{subset}", cer_)
-            self.log("cer", cer_)
+            parts = Path(key).parts
+            for i in len(parts):
+                self.log(f"cer_{'/'.join(parts[:i])}", cer_)
 
         return loss
 
@@ -85,29 +139,35 @@ if __name__ == "__main__":
     strict = not args.no_track
     logger = get_logger(args.experiment_name, strict)
 
+    # Init processor
+    processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
+    processor.image_processor.size = MODEL_IMAGE_SIZE
+
     # Init datasets
     init_lmdb()
     train_keys, test_keys = train_test_split()
-    train_dataset = LMDBDataset(train_keys)
-    test_dataset = LMDBDataset(test_keys)
+    train_dataset = TrOCRDataset(train_keys, do_augment=True, processor=processor)
+    test_dataset = TrOCRDataset(test_keys, do_augment=False, processor=processor)
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True
+        train_dataset,
+        TRAIN_BATCH_SIZE,
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True,
+        worker_init_fn=worker_init_fn,
     )
     test_dataloader = torch.utils.data.DataLoader(
-        test_dataset, TRAIN_BATCH_SIZE, shuffle=True, num_workers=4, pin_memory=True
+        test_dataset,
+        TRAIN_BATCH_SIZE,
+        num_workers=4,
+        pin_memory=True,
+        worker_init_fn=worker_init_fn,
     )
     print(f"Train dataset size: {len(train_dataset)} lines")
-    print(f" Test dataset size: {len(train_dataset)} lines")
-
-    # Init processor
-    processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
-    processor.feature_extractor.size = MODEL_IMAGE_SIZE
+    print(f" Test dataset size: {len(test_dataset)} lines")
 
     # Init model
     model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
-    model.config.max_length = MODEL_MAX_LENGTH
-    model.config.num_beams = 1
-    model.config.vocab_size = model.config.decoder.vocab_size
     model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
     model.config.pad_token_id = processor.tokenizer.pad_token_id
     model.config.bos_token_id = processor.tokenizer.bos_token_id
@@ -124,8 +184,7 @@ if __name__ == "__main__":
     )
 
     # Define trainer
-    trainer = L.Trainer(
-        accelerator="gpu",
+    trainer = lightning.Trainer(
         max_epochs=10,
         val_check_interval=1.0,
         strategy="ddp_find_unused_parameters_true",
@@ -138,5 +197,5 @@ if __name__ == "__main__":
     trainer.fit(
         model=model,
         train_dataloaders=train_dataloader,
-        test_dataloaders=test_dataloader,
+        val_dataloaders=test_dataloader,
     )
