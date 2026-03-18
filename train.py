@@ -102,7 +102,7 @@ class TrOCRModule(lightning.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataset_idx=0):
-        pixel_values, labels, key = batch
+        pixel_values, labels, keys = batch
         outputs = self.model(pixel_values, labels=labels, interpolate_pos_encoding=True)
         loss = self._compute_loss(outputs, labels)
         self.log("validation_loss", loss)
@@ -117,11 +117,11 @@ class TrOCRModule(lightning.LightningModule):
         )
         preds = self.processor.tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
-        for gt, pred in zip(gt, preds):
+        for gt, pred, key in zip(gt, preds, keys):
             cer_ = cer(gt, pred)
-            parts = Path(key).parts
-            for i in len(parts):
-                self.log(f"cer_{'/'.join(parts[:i])}", cer_)
+            parts = Path(key.decode("utf-8")).parts
+            for i in range(len(parts)):
+                self.log(f"cer_{'--'.join(parts[:i])}", cer_)
 
         return loss
 
