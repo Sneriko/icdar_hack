@@ -60,18 +60,17 @@ class TrOCRDataset(torch.utils.data.Dataset):
             data = txn.get(key)
             image, text = pickle.loads(data)
 
-        # Bad samples!
+        image = Image.open(io.BytesIO(image))
+        text = text.decode("utf-8")
         if reject(image, text):
             return random.choice(self)
 
         # Prepare image
-        image = Image.open(io.BytesIO(image))
         if self.do_augment:
             image = augment(image)
         pixel_values = self.processor(image, return_tensors="pt").pixel_values.squeeze()
 
         # Prepare labels
-        text = text.decode("utf-8")
         text = normalize(text)
         labels = self.processor.tokenizer(
             text,
@@ -96,7 +95,6 @@ def reject(image, text):
     place, but this way we don't need to re-generate the dataset when updating the
     rejection criteria.
     """
-
     contains_stopwords = any(stopword in text for stopword in DATA_STOPWORDS)
     too_small = image.height < 10 or image.width < 10
     return contains_stopwords or too_small
@@ -153,9 +151,7 @@ def normalize(text: str) -> str:
     text = text.replace("﹘", " — ")
 
     # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
-    dashes ="(-|_|"
-    pattern = f' ({"|".join(dashes)}) '
-    text = re.sub(pattern, " — ")
+    text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
     
     # Replace repeated dashes with a single em dash (TOGMF-style)
     # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
