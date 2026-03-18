@@ -7,6 +7,7 @@ from lightning.pytorch.loggers import MLFlowLogger
 
 import params
 
+
 def current_git_hash() -> str:
     cmd = "git describe --always"
     return subprocess.check_output(cmd.split()).strip().decode()
@@ -29,5 +30,6 @@ def get_logger(experiment_name: str, strict: bool):
 
     run_name = current_git_hash() if strict else None
     logger = MLFlowLogger(experiment_name=experiment_name, run_name=run_name)
-    logger.log_hyperparams({k: v for k, v in vars(params).items() if not k.startswith("_")})
+    hyperparams = {k: v for k, v in vars(params).items() if not k.startswith("_")}
+    logger.log_hyperparams(hyperparams)
     return logger
