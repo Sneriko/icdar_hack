@@ -6,7 +6,7 @@ DATA_PATH = "/mnt/work/GT-Lejonet_HTR_202602"
 DATA_STOPWORDS = [  # reject samples containing these 'words'
     "??",   # transcriber uncertainty
     "[",    # used as commentary or annotations, example from JLF: 'Nilsson ibidem. Desse bekänn[e]r och tilstå hafwa'
-    "]",
+    "]",    # as above
     "„",    # used in ditto marks in some GT
 ]
 
@@ -28,7 +28,3 @@ TEST_SPLIT = "test_0050"
 AUGMENTATION_PROBABILITY = 0.5
 
 TORCH_FLOAT32_MATMUL_PRECISION = "high"
-
-
-
-

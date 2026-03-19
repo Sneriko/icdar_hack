@@ -10,6 +10,10 @@ import cv2
 import os
 from pathlib import Path
 from tqdm import tqdm
+import re
+
+
+from params import DATA_STOPWORDS
 
 
 class Page:
@@ -42,13 +46,25 @@ class Page:
             content = line.find("./TextEquiv/Unicode", ns)
             if content is None:
                 continue
+
+            # Only accept empty lines from the 'tomma sidor' subset!
+            # Other GT may have empty lines but those are likely to be annotation errors.
+            if content.text is None and not "tomma_sidor" in self.xml_path:
+                continue
+
+            text = content.text or ""
+            text = normalize(text)
+
             try:
                 masked_image = apply_mask(image, polygon)
             except ValueError:
                 continue
 
+            if reject(image, text):
+                continue
+
             line_id = f"{self.key}_line{i}"
-            results.append((line_id, masked_image, content.text))
+            results.append((line_id, masked_image, text))
         return results
 
 
@@ -104,3 +120,77 @@ def pages_from_path(path):
             pbar.update(1)
 
     return pages
+
+
+def normalize(text: str) -> str:
+    """
+    Normalize `text`
+    """
+    fractions = [
+        ("½", "1/2"),
+        ("⅐", "1/7"),
+        ("⅑", "1/9"),
+        ("⅒", "1/10"),
+        ("⅓", "1/3"),
+        ("⅔", "2/3"),
+        ("⅕", "1/5"),
+        ("⅖", "2/5"),
+        ("⅗", "3/5"),
+        ("⅘", "4/5"),
+        ("⅙", "1/6"),
+        ("⅚", "5/6"),
+        ("⅛", "1/8"),
+        ("⅜", "3/8"),
+        ("⅝", "5/8"),
+        ("⅞", "7/8"),
+    ]
+
+    for a, b in fractions:
+        # in mixed whole- and fraction numbers, there might not be a space between
+        # the whole part and the fraction part, like this: 2½
+        # when replacing the fractions, we need to insert a whitespace to preserve
+        # the original number:  2½ -> 2 1/2 (and not 21/2!)
+        # if there was a space (2 ½) this causes double whitespaces, but those will be
+        # collapsed later on.
+        text = text.replace(a, f" {b}")
+
+    # Replace all underscores with an em dash (TOGMF-style)
+    text = text.replace("_", "—")
+
+    # No space before '¬'
+    text = re.sub(r"\s*¬", "¬", text)
+
+    # Always put a whitespace after a punctuation mark
+    # 'Den .... 13 ..Januarii' => 'Den .... 13 .. Januarii'
+    text = re.sub(r"\.(\w)", r". \1", text)
+
+    # Replace more than three repeated punctuation marks or '…' with '...'
+    # 'Den .... 13 .. Januarii' => 'Den ... 13 .. Januarii'
+    text = re.sub(r"(\. ?)(\. ?)(\. ?)+", "...", text)
+    text = text.replace("…", "...")
+
+    # Replace '﹘' ('small em dash') with its 'large' version
+    text = text.replace("﹘", " — ")
+
+    # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
+    text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
+    
+    # Replace repeated dashes with a single em dash (TOGMF-style)
+    # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
+    text = re.sub(r"( ?(-|_|—|‒|―|–) ?)+",  " — ", text)
+
+    # Replace all (possibly repeated) whitespace-like characters with a singe ' '
+    text = re.sub(r"\s+", " ", text)
+
+    # No leading or training whitespace
+    text = text.strip()
+    return text
+
+
+def reject(image, text):
+    """
+    Return True if sample should be rejected.
+    """
+    contains_stopwords = any(stopword in text for stopword in DATA_STOPWORDS)
+    too_small = image.height < 10 or image.width < 10
+    return contains_stopwords or too_small
