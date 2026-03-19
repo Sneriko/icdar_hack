@@ -126,21 +126,24 @@ def normalize(text: str) -> str:
     """
     fractions = [
         ("½", "1/2"),
-        ("⅐", "1/7"),
-        ("⅑", "1/9"),
-        ("⅒", "1/10"),
+        ("↉", "0/3"),
         ("⅓", "1/3"),
         ("⅔", "2/3"),
+        ("¼", "1/4"),
+        ("¾", "3/4"),
         ("⅕", "1/5"),
         ("⅖", "2/5"),
         ("⅗", "3/5"),
         ("⅘", "4/5"),
         ("⅙", "1/6"),
         ("⅚", "5/6"),
+        ("⅐", "1/7"),
         ("⅛", "1/8"),
         ("⅜", "3/8"),
         ("⅝", "5/8"),
         ("⅞", "7/8"),
+        ("⅑", "1/9"),
+        ("⅒", "1/10"),
     ]
 
     for a, b in fractions:
@@ -170,16 +173,15 @@ def normalize(text: str) -> str:
 
     # Replace more than three repeated punctuation marks or '…' with '...'
     # 'Den .... 13 .. Januarii' => 'Den ... 13 .. Januarii'
-    text = re.sub(r"(\. ?)(\. ?)(\. ?)+", "...", text)
-    text = text.replace("…", "...")
+    text = re.sub(r"(\. ?)(\. ?)(\. ?)+", "... ", text)
+    text = text.replace("…", "... ")
 
     # Replace '﹘' ('small em dash') with its 'large' version
     text = text.replace("﹘", " — ")
-
     text = text.replace("_,", "")
 
-    # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
-    text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
+    # Replace all types of dashes with a em dash, IF they're surrounded by whitespace or start/end of line
+    text = re.sub(r"(^| )(-|_|—|‒|―|–)( |$)", " — ", text)
 
     # Replace repeated dashes, dots or similar with a single em dash (TOGMF-style)
     # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
@@ -307,7 +309,7 @@ if __name__ == "__main__":
         val_check_interval=0.5,
         strategy="ddp_find_unused_parameters_true",
         logger=logger,
-        num_sanity_val_steps=100,
+        num_sanity_val_steps=10,
         callbacks=[checkpoint_callback],
     )
 
