@@ -16,14 +16,17 @@ Sätt `MLFLOW_TRACKING_URI`:
 export MLFLOW_TRACKING_URI=https://mlflow.ra.se
 ```
 
-Träningsskriptet hämtar data från `DATA_PATH`, som sätts i `params.py`. Uppdatera den om det behövs. Se avsnittet [Data](#data) för format.
+Träningsskriptet hämtar data från `DATA_PATH`, som sätts i `params.py`. Uppdatera den om det behövs. Se avsnittet [Data](#data) för format. Checka in eventuella ändringar förbered datan med:
+```
+python3 data.py
+```
+Det tar en stund (~1h) att skapa träningssetet första gången man kör skriptet.
 
-Checka in eventuella ändringar och starta träningen med 
+Starta sedan träningen:
 ```
 python3 train.py EXPERIMENTNAMN
 ```
-Det tar en stund (~1h) att skapa träningssetet första gången man kör skriptet.
-Det cacheas så följande körningar kommer komma igång snabbare.
+
 Träningen kommer att loggas till Mlflow under det valda experimentnamnet.
 
 
