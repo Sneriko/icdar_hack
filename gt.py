@@ -157,7 +157,7 @@ def normalize(text: str) -> str:
 
     # No space before '¬', no repeated '¬'s
     text = re.sub(r"\s*¬", "¬", text)
-    text = re.sub(r"¬*", r"¬", text)
+    text = re.sub(r"¬+", r"¬", text)
 
     # Remove „
     text = text.replace("„", "")
@@ -171,10 +171,6 @@ def normalize(text: str) -> str:
     # No tildes
     text = text.replace("~", "")
 
-    # Always put a whitespace after '.'
-    # 'Den .... 13 ..Januarii' => 'Den .... 13 .. Januarii'
-    text = re.sub(r"\.(\w)", r". \1", text)
-
     # Replace more than three repeated punctuation marks or '…' with '...'
     # 'Den .... 13 .. Januarii' => 'Den ... 13 .. Januarii'
     text = re.sub(r"(\. ?)(\. ?)(\. ?)+", "...", text)
@@ -183,19 +179,21 @@ def normalize(text: str) -> str:
     # Replace '﹘' ('small em dash') with its 'large' version
     text = text.replace("﹘", " — ")
 
+    text = text.replace("_,", "")
+
     # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
     text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
 
     # Replace repeated dashes, dots or similar with a single em dash (TOGMF-style)
     # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
-    text = re.sub(r"([^\w\.\",])(\W|_)+([^\w\.\"])", " — ", text)
+    text = re.sub(r"((-|_|—|‒|―|–) ?)+", " — ", text)
 
     # Replace all (possibly repeated) whitespace-like characters with a singe ' '
     text = re.sub(r"\s+", " ", text)
 
-    # No leading or training whitespace
-    text = text.strip()
-    text = unicodedata.normalize("NFKC", text)
+    # No leading or training whitespace or em dashes
+    text = text.strip("— ")
+    text = unicodedata.normalize("NFKC", text)    
     return text
 
 
