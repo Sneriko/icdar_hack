@@ -74,7 +74,7 @@ class TrOCRDataset(torch.utils.data.Dataset):
             max_length=MODEL_MAX_LENGTH,
             truncation=True,
             return_tensors="pt",
-        ).input_ids.squeeze()
+        ).input_ids.squeeze(0)
         labels[labels == self.processor.tokenizer.pad_token_id] = -100
 
         return pixel_values, labels, key
