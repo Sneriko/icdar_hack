@@ -60,18 +60,14 @@ class TrOCRDataset(torch.utils.data.Dataset):
             data = txn.get(key)
             image, text = pickle.loads(data)
 
-        image = Image.open(io.BytesIO(image))
-        text = text.decode("utf-8")
-        if reject(image, text):
-            return random.choice(self)
-
         # Prepare image
+        image = Image.open(io.BytesIO(image))
         if self.do_augment:
             image = augment(image)
         pixel_values = self.processor(image, return_tensors="pt").pixel_values.squeeze()
 
         # Prepare labels
-        text = normalize(text)
+        text = text.decode("utf-8")
         labels = self.processor.tokenizer(
             text,
             padding="max_length",

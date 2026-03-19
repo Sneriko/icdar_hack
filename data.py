@@ -171,3 +171,7 @@ def train_test_split():
                 train.append(page)
 
     return train, test
+
+
+if __name__ == "__main__":
+    init_lmdb()

@@ -5,9 +5,10 @@ Hyperparameters for training the Swedish lion.
 DATA_PATH = "/mnt/work/GT-Lejonet_HTR_202602"
 DATA_STOPWORDS = [  # reject samples containing these 'words'
     "??",   # transcriber uncertainty
+    "(?)",  # as above, example from JLF: 'dukar, 1 armkläde, 2 harm lijner (?), 1 par toflor,'
     "[",    # used as commentary or annotations, example from JLF: 'Nilsson ibidem. Desse bekänn[e]r och tilstå hafwa'
     "]",    # as above
-    "„",    # used in ditto marks in some GT
+
 ]
 
 LMDB_DATA_DIRECTORY = ".data"

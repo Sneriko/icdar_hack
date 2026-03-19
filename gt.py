@@ -7,6 +7,7 @@ from PIL import Image
 import xml.etree.ElementTree as ET
 import numpy as np
 import cv2
+import unicodedata
 import os
 from pathlib import Path
 from tqdm import tqdm
@@ -154,13 +155,23 @@ def normalize(text: str) -> str:
         # collapsed later on.
         text = text.replace(a, f" {b}")
 
-    # Replace all underscores with an em dash (TOGMF-style)
-    text = text.replace("_", "—")
-
-    # No space before '¬'
+    # No space before '¬', no repeated '¬'s
     text = re.sub(r"\s*¬", "¬", text)
+    text = re.sub(r"¬*", r"¬", text)
 
-    # Always put a whitespace after a punctuation mark
+    # Remove „
+    text = text.replace("„", "")
+
+    # Normalize fancy quotes
+    text = text.replace("”", '"').replace("“", '"').replace("´", "'")
+
+    # Make '·' and '‧' into regular '.'
+    text = text.replace("·", ".").replace("‧", ".")
+
+    # No tildes
+    text = text.replace("~", "")
+
+    # Always put a whitespace after '.'
     # 'Den .... 13 ..Januarii' => 'Den .... 13 .. Januarii'
     text = re.sub(r"\.(\w)", r". \1", text)
 
@@ -174,16 +185,17 @@ def normalize(text: str) -> str:
 
     # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
     text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
-    
-    # Replace repeated dashes with a single em dash (TOGMF-style)
+
+    # Replace repeated dashes, dots or similar with a single em dash (TOGMF-style)
     # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
-    text = re.sub(r"( ?(-|_|—|‒|―|–) ?)+",  " — ", text)
+    text = re.sub(r"([^\w\.\",])(\W|_)+([^\w\.\"])", " — ", text)
 
     # Replace all (possibly repeated) whitespace-like characters with a singe ' '
     text = re.sub(r"\s+", " ", text)
 
     # No leading or training whitespace
     text = text.strip()
+    text = unicodedata.normalize("NFKC", text)
     return text
 
 
