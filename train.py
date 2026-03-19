@@ -10,6 +10,7 @@ from pathlib import Path
 import random
 import logging
 import re
+import unicodedata
 
 from PIL import Image
 from jiwer import cer
@@ -60,14 +61,19 @@ class TrOCRDataset(torch.utils.data.Dataset):
             data = txn.get(key)
             image, text = pickle.loads(data)
 
-        # Prepare image
         image = Image.open(io.BytesIO(image))
+        text = text.decode("utf-8")
+        text = normalize(text)
+
+        if reject(image, text):
+            return random.choice(self)
+
+        # Prepare image        
         if self.do_augment:
             image = augment(image)
         pixel_values = self.processor(image, return_tensors="pt").pixel_values.squeeze()
 
         # Prepare labels
-        text = text.decode("utf-8")
         labels = self.processor.tokenizer(
             text,
             padding="max_length",
@@ -103,6 +109,89 @@ def subset(key: bytes):
     key = key.decode("utf-8")
     key = key.removeprefix(DATA_PATH)
     return Path(key).parts[1].strip("/")
+
+
+def reject(image, text):
+    """
+    Return True if sample should be rejected.
+    """
+    contains_stopwords = any(stopword in text for stopword in DATA_STOPWORDS)
+    too_small = image.height < 10 or image.width < 10
+    return contains_stopwords or too_small
+
+
+def normalize(text: str) -> str:
+    """
+    Normalize `text`
+    """
+    fractions = [
+        ("½", "1/2"),
+        ("⅐", "1/7"),
+        ("⅑", "1/9"),
+        ("⅒", "1/10"),
+        ("⅓", "1/3"),
+        ("⅔", "2/3"),
+        ("⅕", "1/5"),
+        ("⅖", "2/5"),
+        ("⅗", "3/5"),
+        ("⅘", "4/5"),
+        ("⅙", "1/6"),
+        ("⅚", "5/6"),
+        ("⅛", "1/8"),
+        ("⅜", "3/8"),
+        ("⅝", "5/8"),
+        ("⅞", "7/8"),
+    ]
+
+    for a, b in fractions:
+        # in mixed whole- and fraction numbers, there might not be a space between
+        # the whole part and the fraction part, like this: 2½
+        # when replacing the fractions, we need to insert a whitespace to preserve
+        # the original number:  2½ -> 2 1/2 (and not 21/2!)
+        # if there was a space (2 ½) this causes double whitespaces, but those will be
+        # collapsed later on.
+        text = text.replace(a, f" {b}")
+
+    # No space before '¬', no repeated '¬'s
+    text = re.sub(r"\s*¬", "¬", text)
+    text = re.sub(r"¬+", r"¬", text)
+
+    # Remove „
+    text = text.replace("„", "")
+
+    # Normalize fancy quotes
+    text = text.replace("”", '"').replace("“", '"').replace("´", "'")
+
+    # Make '·' and '‧' into regular '.'
+    text = text.replace("·", ".").replace("‧", ".")
+
+    # No tildes
+    text = text.replace("~", "")
+
+    # Replace more than three repeated punctuation marks or '…' with '...'
+    # 'Den .... 13 .. Januarii' => 'Den ... 13 .. Januarii'
+    text = re.sub(r"(\. ?)(\. ?)(\. ?)+", "...", text)
+    text = text.replace("…", "...")
+
+    # Replace '﹘' ('small em dash') with its 'large' version
+    text = text.replace("﹘", " — ")
+
+    text = text.replace("_,", "")
+
+    # Replace all types of dashes with a em dash, IF they're surrounded by whitespace
+    text = re.sub(r" (-|_|—|‒|―|–) ", " — ", text)
+
+    # Replace repeated dashes, dots or similar with a single em dash (TOGMF-style)
+    # 'Carl _ _ _ Wikman. 16.' => 'Carl — Wikman. 16.'
+    text = re.sub(r"((-|_|—|‒|―|–) ?)((-|_|—|‒|―|–) ?)+", " — ", text)
+
+    # Replace all (possibly repeated) whitespace-like characters with a singe ' '
+    text = re.sub(r"\s+", " ", text)
+
+    # No leading or training whitespace or em dashes
+    text = text.strip("— ")
+    text = unicodedata.normalize("NFKC", text)    
+    return text
 
 
 class TrOCRModule(lightning.LightningModule):
