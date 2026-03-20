@@ -23,9 +23,8 @@ def current_git_branch() -> str:
     return subprocess.check_output(cmd.split()).strip().decode()
 
 
-def get_logger(run_name: str, strict: bool):
-
-    if strict and repo_is_dirty():
+def get_logger(run_name: str):
+    if repo_is_dirty():
         print(
             "Your working directory contains untracked and/or modified files. "
             "Please commit or remove your changes before starting a training run, "
@@ -33,10 +32,10 @@ def get_logger(run_name: str, strict: bool):
         )
         exit()
 
-        branch = current_git_branch()
-        hash = current_git_hash()
-        run_name = run_name or f"{branch}-{hash}"
-        logger = MLFlowLogger(experiment_name="swedish-lion", run_name=run_name)
-        hyperparams = {k: v for k, v in vars(params).items() if not k.startswith("_")}
-        logger.log_hyperparams(hyperparams)
-        return logger
+    branch = current_git_branch()
+    hash = current_git_hash()
+    run_name = run_name or f"{branch}-{hash}"
+    logger = MLFlowLogger(experiment_name="swedish-lion", run_name=run_name)
+    hyperparams = {k: v for k, v in vars(params).items() if not k.startswith("_")}
+    logger.log_hyperparams(hyperparams)
+    return logger

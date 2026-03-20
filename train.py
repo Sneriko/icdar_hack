@@ -255,8 +255,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Set up logging
-    strict = not args.no_track
-    logger = get_logger(args.name, strict)
+    logger = None if args.no_track else get_logger(args.name)
 
     # Init processor
     processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
