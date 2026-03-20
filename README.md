@@ -11,12 +11,9 @@ cd swedish-lion
 uv sync
 ```
 
-Sätt `MLFLOW_TRACKING_URI`:
-```
-export MLFLOW_TRACKING_URI=https://mlflow.ra.se
-```
-
-Träningsskriptet hämtar data från `DATA_PATH`, som sätts i `params.py`. Uppdatera den om det behövs. Se avsnittet [Data](#data) för format. Checka in eventuella ändringar förbered datan med:
+Alla träningsinställningar finns i `params.py`.
+Uppdatera den om det behövs och checka in eventuella ändringar.
+Förbered datan med:
 ```
 python3 data.py
 ```

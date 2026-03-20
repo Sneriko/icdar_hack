@@ -35,7 +35,11 @@ def get_logger(run_name: str):
     branch = current_git_branch()
     hash = current_git_hash()
     run_name = run_name or f"{branch}-{hash}"
-    logger = MLFlowLogger(experiment_name="swedish-lion", run_name=run_name)
+    logger = MLFlowLogger(
+        experiment_name=params.MLFLOW_EXPERIMENT_NAME,
+        run_name=run_name,
+        tracking_uri=params.MLFLOW_TRACKING_URI,
+    )
     hyperparams = {k: v for k, v in vars(params).items() if not k.startswith("_")}
     logger.log_hyperparams(hyperparams)
     return logger
