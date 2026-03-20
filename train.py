@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     # Checkpointing
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints/{args.experiment_name}",
+        dirpath=f"checkpoints",
         every_n_epochs=1,
         monitor=TRAIN_EARLY_STOPPING_MONITOR,
         save_top_k=3,
@@ -318,6 +318,7 @@ if __name__ == "__main__":
 
     model = TrOCRModule(model, processor)
     trainer.fit(
+        ckpt_path="/home/viktoria/swedish-lion/checkpoints/swedish-lion/epoch=8-step=74852-validation_loss=0.2321-cer=0.0466.ckpt",
         model=model,
         train_dataloaders=train_dataloader,
         val_dataloaders=test_dataloader,
