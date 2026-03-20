@@ -15,7 +15,7 @@ import unicodedata
 from PIL import Image
 from jiwer import cer
 import lightning
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import lmdb
 
@@ -298,19 +298,24 @@ if __name__ == "__main__":
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"checkpoints/{args.experiment_name}",
         every_n_epochs=1,
-        monitor="validation_loss",
+        monitor=TRAIN_EARLY_STOPPING_MONITOR,
         save_top_k=3,
         filename="{epoch}-{step}-{validation_loss:.4f}-{cer:.4f}",
     )
 
+    early_stopping = EarlyStopping(
+        monitor=TRAIN_EARLY_STOPPING_MONITOR,
+        patience=TRAIN_EARLY_STOPPING_PATIENCE,
+    )
+
     # Define trainer
     trainer = lightning.Trainer(
-        max_epochs=10,
+        max_epochs=TRAIN_MAX_EPOCHS,
         val_check_interval=0.5,
         strategy="ddp_find_unused_parameters_true",
         logger=logger,
         num_sanity_val_steps=10,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, early_stopping],
     )
 
     model = TrOCRModule(model, processor)
