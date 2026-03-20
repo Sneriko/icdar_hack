@@ -24,10 +24,10 @@ Det tar en stund (~1h) att skapa träningssetet första gången man kör skripte
 
 Starta sedan träningen:
 ```
-python3 train.py EXPERIMENTNAMN
+python3 train.py
 ```
 
-Träningen kommer att loggas till Mlflow under det valda experimentnamnet.
+Träningen kommer att loggas till Mlflow under experimentet [`swedish-lion`](https://mlflow.ra.se/#/experiments/28).
 
 
 ## Repots struktur

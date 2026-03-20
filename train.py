@@ -34,7 +34,6 @@ validation_logger.addHandler(logging.FileHandler("validation.log"))
 validation_logger.setLevel(logging.INFO)
 
 
-
 class TrOCRDataset(torch.utils.data.Dataset):
     def __init__(self, pages: list[str], do_augment: bool, processor: TrOCRProcessor):
         """
@@ -68,7 +67,7 @@ class TrOCRDataset(torch.utils.data.Dataset):
         if reject(image, text):
             return random.choice(self)
 
-        # Prepare image        
+        # Prepare image
         if self.do_augment:
             image = augment(image)
         pixel_values = self.processor(image, return_tensors="pt").pixel_values.squeeze()
@@ -192,7 +191,7 @@ def normalize(text: str) -> str:
 
     # No leading or training whitespace or em dashes
     text = text.strip("— ")
-    text = unicodedata.normalize("NFKC", text)    
+    text = unicodedata.normalize("NFKC", text)
     return text
 
 
@@ -251,13 +250,13 @@ class TrOCRModule(lightning.LightningModule):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("train")
-    parser.add_argument("experiment_name")
+    parser.add_argument("--name", default=None)
     parser.add_argument("--no-track", action="store_true")
     args = parser.parse_args()
 
     # Set up logging
     strict = not args.no_track
-    logger = get_logger(args.experiment_name, strict)
+    logger = get_logger(args.name, strict)
 
     # Init processor
     processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
