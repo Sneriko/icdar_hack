@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
     # Checkpointing
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints/{logger._run_name}",
+        dirpath=f"checkpoints/{logger._run_name}" if logger else "checkpoints/untracked",
         every_n_epochs=1,
         monitor=TRAIN_EARLY_STOPPING_MONITOR,
         save_top_k=3,
