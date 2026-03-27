@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
     # Checkpointing
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints",
+        dirpath=f"checkpoints/{logger._run_name}",
         every_n_epochs=1,
         monitor=TRAIN_EARLY_STOPPING_MONITOR,
         save_top_k=3,
@@ -324,3 +324,9 @@ if __name__ == "__main__":
         train_dataloaders=train_dataloader,
         val_dataloaders=test_dataloader,
     )
+
+    # Run model on test suite
+    # Importing this here to avoid circular imports
+    from evaluation import run_test_suite
+
+    run_test_suite(checkpoint_callback.best_model_path)
