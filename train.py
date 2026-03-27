@@ -329,4 +329,16 @@ if __name__ == "__main__":
     # Importing this here to avoid circular imports
     from evaluation import run_test_suite
 
-    run_test_suite(checkpoint_callback.best_model_path)
+    outputs = run_test_suite(checkpoint_callback.best_model_path)
+    logger.log_metrics({
+        "cer_evaluation_suite": outputs["cer"].mean(),
+        "wer_evaluation_suite": outputs["wer"].mean(),
+    })
+
+    # Save best model
+    path = checkpoint_callback.best_model_path
+    module = TrOCRModule.load_from_checkpoint(path)
+    path = path.replace(".ckpt", "")
+    module.model.save_pretrained(path)
+    module.processor.save_pretrained(path)
+    module.processor.tokenizer.save_pretrained(path)

@@ -73,7 +73,6 @@ def run_test_suite(checkpoint) -> str:
                     "gt": gt,
                     "htr": pred
                 })
-        break
 
     df = pd.DataFrame(lines)
     df["cer"] = df.apply(lambda row: jiwer.cer(row["gt"], row["htr"]), axis=1)
@@ -84,6 +83,7 @@ def run_test_suite(checkpoint) -> str:
     output = os.path.join(path, "evaluation.csv")    
     df.to_csv(output)
     print("Wrote evaluation results to", output)
+    return df
 
 
 if __name__ == "__main__":
