@@ -196,8 +196,21 @@ def normalize(text: str) -> str:
 
 
 class TrOCRModule(lightning.LightningModule):
-    def __init__(self, model, processor):
+    def __init__(self):
         super().__init__()
+
+        # Init processor
+        processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
+        processor.image_processor.size = MODEL_IMAGE_SIZE
+
+        # Init model
+        model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
+        model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
+        model.config.pad_token_id = processor.tokenizer.pad_token_id
+        model.config.bos_token_id = processor.tokenizer.bos_token_id
+        model.config.eos_token_id = processor.tokenizer.eos_token_id
+        model.train()
+
         self.model = model
         self.processor = processor
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=-100)
@@ -257,15 +270,13 @@ if __name__ == "__main__":
     # Set up logging
     logger = None if args.no_track else get_logger(args.name)
 
-    # Init processor
-    processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
-    processor.image_processor.size = MODEL_IMAGE_SIZE
+    model = TrOCRModule()
 
     # Init datasets
     init_lmdb()
     train_keys, test_keys = train_test_split()
-    train_dataset = TrOCRDataset(train_keys, do_augment=True, processor=processor)
-    test_dataset = TrOCRDataset(test_keys, do_augment=False, processor=processor)
+    train_dataset = TrOCRDataset(train_keys, do_augment=True, processor=model.processor)
+    test_dataset = TrOCRDataset(test_keys, do_augment=False, processor=model.processor)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         TRAIN_BATCH_SIZE,
@@ -283,14 +294,6 @@ if __name__ == "__main__":
     )
     print(f"Train dataset size: {len(train_dataset)} lines")
     print(f" Test dataset size: {len(test_dataset)} lines")
-
-    # Init model
-    model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
-    model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
-    model.config.pad_token_id = processor.tokenizer.pad_token_id
-    model.config.bos_token_id = processor.tokenizer.bos_token_id
-    model.config.eos_token_id = processor.tokenizer.eos_token_id
-    model.train()
 
     # Checkpointing
     checkpoint_callback = ModelCheckpoint(
@@ -316,9 +319,7 @@ if __name__ == "__main__":
         callbacks=[checkpoint_callback, early_stopping],
     )
 
-    model = TrOCRModule(model, processor)
     trainer.fit(
-        ckpt_path="/home/viktoria/swedish-lion/checkpoints/swedish-lion/epoch=8-step=74852-validation_loss=0.2321-cer=0.0466.ckpt",
         model=model,
         train_dataloaders=train_dataloader,
         val_dataloaders=test_dataloader,
