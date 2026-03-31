@@ -2,7 +2,7 @@
 Hyperparameters for training the Swedish lion.
 """
 
-DATA_PATH = "/mnt/work/Medeltids_HTR_260330"
+DATA_PATH = "/home/dgxuser/erik/projects/swedish-lion/data"
 DATA_STOPWORDS = [  # reject samples containing these 'words'
     "??",   # transcriber uncertainty
     "(?)",  # as above, example from JLF: 'dukar, 1 armkläde, 2 harm lijner (?), 1 par toflor,'
@@ -31,4 +31,4 @@ AUGMENTATION_PROBABILITY = 0.5
 TORCH_FLOAT32_MATMUL_PRECISION = "medium"
 
 MLFLOW_TRACKING_URI = "https://mlflow.ra.se"
-MLFLOW_EXPERIMENT_NAME = "fornsvensk_htr"
+MLFLOW_EXPERIMENT_NAME = "fornsvensk_htr_only_gt"

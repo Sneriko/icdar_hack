@@ -19,7 +19,7 @@ random.seed(10)
 
 splits = [0.025, 0.05, 0.075, 0.1]
 
-for parent, _, files in os.walk("/mnt/work/Medeltids_HTR_260330/"):
+for parent, _, files in os.walk("/home/dgxuser/erik/projects/swedish-lion/data/only_ground_truth"):
     if parent.endswith("page"):
         files = [
             file
