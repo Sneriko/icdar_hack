@@ -19,7 +19,7 @@ random.seed(10)
 
 splits = [0.025, 0.05, 0.075, 0.1]
 
-for parent, _, files in os.walk("/mnt/work/GT-Lejonet_HTR_202602"):
+for parent, _, files in os.walk("/mnt/work/Medeltids_HTR_260330/"):
     if parent.endswith("page"):
         files = [
             file
@@ -44,7 +44,7 @@ for parent, _, files in os.walk("/mnt/work/GT-Lejonet_HTR_202602"):
 
             if os.path.exists(path):
                 print(f"Split {path} exists already! Will not overwrite it.")
-                exit()
+                
 
             with open(path, "w") as f:
                 f.write("\n".join(set))

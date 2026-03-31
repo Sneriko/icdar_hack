@@ -24,6 +24,7 @@ def current_git_branch() -> str:
 
 
 def get_logger(run_name: str):
+    
     if repo_is_dirty():
         print(
             "Your working directory contains untracked and/or modified files. "
