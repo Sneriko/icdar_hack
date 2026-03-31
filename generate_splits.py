@@ -44,6 +44,7 @@ for parent, _, files in os.walk("/mnt/work/Medeltids_HTR_260330/"):
 
             if os.path.exists(path):
                 print(f"Split {path} exists already! Will not overwrite it.")
+                exit()
                 
 
             with open(path, "w") as f:
