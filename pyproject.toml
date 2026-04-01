@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "google-genai>=1.15.0",
     "jiwer>=4.0.0",
     "lightning>=2.6.1",
     "lmdb>=1.8.1",
