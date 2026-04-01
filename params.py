@@ -2,7 +2,7 @@
 Hyperparameters for training the Swedish lion.
 """
 
-DATA_PATH = "/home/dgxuser/erik/projects/swedish-lion/data"
+DATA_PATH = "/home/dgxuser/erik/projects/swedish-lion/data/only_ground_truth"
 DATA_STOPWORDS = [  # reject samples containing these 'words'
     "??",   # transcriber uncertainty
     "(?)",  # as above, example from JLF: 'dukar, 1 armkläde, 2 harm lijner (?), 1 par toflor,'
@@ -15,11 +15,11 @@ LMDB_DATA_DIRECTORY = ".data"
 LMDB_KEYS = b"__keys__"
 LMDB_MAP_SIZE = 200 * 1024**3
 
-MODEL_BASE_MODEL_ID = "microsoft/trocr-large-handwritten"
+MODEL_BASE_MODEL_ID = "microsoft/trocr-base-handwritten"
 MODEL_IMAGE_SIZE = {"height": 192, "width": 1024}
 MODEL_MAX_LENGTH = 128
 
-TRAIN_LEARNING_RATE = 1e-5
+TRAIN_LEARNING_RATE = 1e-6
 TRAIN_BATCH_SIZE = 16
 TRAIN_MAX_EPOCHS = 50
 TRAIN_EARLY_STOPPING_PATIENCE = 5
