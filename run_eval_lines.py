@@ -42,6 +42,26 @@ from train import TrOCRModule, normalize, reject
 VALID_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".jp2", ".bmp"}
 
 
+def infer_model_base_model_id_from_checkpoint(checkpoint_path: Path) -> str | None:
+    """
+    Infer TrOCR base model family from checkpoint tensor shapes.
+    Returns a HF model id if inference is possible, else None.
+    """
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    state_dict = checkpoint.get("state_dict", checkpoint)
+    probe_key = "model.decoder.model.decoder.layers.0.encoder_attn.k_proj.weight"
+    probe = state_dict.get(probe_key)
+    if probe is None or probe.ndim != 2:
+        return None
+
+    in_features = int(probe.shape[1])
+    if in_features == 768:
+        return "microsoft/trocr-base-handwritten"
+    if in_features == 1024:
+        return "microsoft/trocr-large-handwritten"
+    return None
+
+
 def normalize_basename(entry: str) -> str:
     """Turn split-file entries into a basename (strip path + suffix)."""
     raw = entry.strip()
@@ -128,6 +148,15 @@ def main() -> None:
     )
     parser.add_argument("--output-dir", default="evaluation_local", help="Output directory for crops and csv")
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument(
+        "--model-base-model-id",
+        default=None,
+        help=(
+            "HF base model id used during training, e.g. "
+            "'microsoft/trocr-base-handwritten' or 'microsoft/trocr-large-handwritten'. "
+            "If omitted, the script attempts to infer it from checkpoint tensor shapes."
+        ),
+    )
     args = parser.parse_args()
 
     data_path = Path(args.data_path).resolve()
@@ -138,7 +167,20 @@ def main() -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
-    module = TrOCRModule.load_from_checkpoint(args.checkpoint)
+    inferred_model_id = infer_model_base_model_id_from_checkpoint(Path(args.checkpoint))
+    model_id = args.model_base_model_id or inferred_model_id
+
+    if model_id is not None:
+        print(f"Using model base id: {model_id}")
+        module = TrOCRModule.load_from_checkpoint(
+            args.checkpoint, model_base_model_id=model_id
+        )
+    else:
+        print(
+            "[WARN] Could not infer model base id from checkpoint; "
+            "falling back to default in params.py."
+        )
+        module = TrOCRModule.load_from_checkpoint(args.checkpoint)
     module.eval()
     module.model.to(device)
 

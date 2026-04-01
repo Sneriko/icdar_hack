@@ -196,15 +196,20 @@ def normalize(text: str) -> str:
 
 
 class TrOCRModule(lightning.LightningModule):
-    def __init__(self):
+    def __init__(
+        self,
+        model_base_model_id: str = MODEL_BASE_MODEL_ID,
+        model_image_size: dict[str, int] = MODEL_IMAGE_SIZE,
+    ):
         super().__init__()
+        self.save_hyperparameters()
 
         # Init processor
-        processor = TrOCRProcessor.from_pretrained(MODEL_BASE_MODEL_ID, use_fast=True)
-        processor.image_processor.size = MODEL_IMAGE_SIZE
+        processor = TrOCRProcessor.from_pretrained(model_base_model_id, use_fast=True)
+        processor.image_processor.size = model_image_size
 
         # Init model
-        model = VisionEncoderDecoderModel.from_pretrained(MODEL_BASE_MODEL_ID)
+        model = VisionEncoderDecoderModel.from_pretrained(model_base_model_id)
         model.config.decoder_start_token_id = processor.tokenizer.bos_token_id
         model.config.pad_token_id = processor.tokenizer.pad_token_id
         model.config.bos_token_id = processor.tokenizer.bos_token_id
